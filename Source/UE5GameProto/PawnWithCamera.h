@@ -20,7 +20,7 @@ protected:
     virtual void BeginPlay() override;
 
     UPROPERTY(EditAnyWhere)
-    class USpringArmComponent* springArmComp;
+    class USpringArmComponent* springArmComp; // camera boom
 
     UPROPERTY(EditAnyWhere)
     class UCameraComponent* cameraComp;

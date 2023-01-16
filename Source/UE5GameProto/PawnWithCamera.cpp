@@ -4,6 +4,7 @@
 #include "PawnWithCamera.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Camera/CameraComponent.h"
+#include "Kismet\KismetSystemLibrary.h"
 
 // Sets default values
 APawnWithCamera::APawnWithCamera() {
@@ -15,6 +16,12 @@ APawnWithCamera::APawnWithCamera() {
     staticMeshComp = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("StaticMeshComponent"));
     springArmComp = CreateDefaultSubobject<USpringArmComponent>(TEXT("SpringArmComponent"));
     cameraComp = CreateDefaultSubobject<UCameraComponent>(TEXT("CameraComponent"));
+
+    // set mesh
+    ConstructorHelpers::FObjectFinder<UStaticMesh> capsuleMesh(TEXT("/Game/StarterContent/Shapes/Shape_NarrowCapsule.Shape_NarrowCapsule"));
+    if (capsuleMesh.Succeeded()) {
+        staticMeshComp->SetStaticMesh(capsuleMesh.Object);
+    }
 
     // attach components
     staticMeshComp->SetupAttachment(RootComponent);
@@ -41,6 +48,43 @@ void APawnWithCamera::BeginPlay() {
 void APawnWithCamera::Tick(float DeltaTime) {
     Super::Tick(DeltaTime);
 
+    // set camera FOV and arm length by zooming in/out
+    {
+        if (bZoomingIn) {
+            zoomFactor += DeltaTime / 0.5f;
+        } else {
+            zoomFactor -= DeltaTime / 0.25f;
+        }
+        zoomFactor = FMath::Clamp<float>(zoomFactor, 0.0f, 1.0f);
+
+        cameraComp->FieldOfView = FMath::Lerp<float>(90.0f, 60.0f, zoomFactor);
+        springArmComp->TargetArmLength = FMath::Lerp<float>(400.0f, 300.0f, zoomFactor);
+    }
+
+    // set actor yaw by cameraInput
+    {
+        FRotator actorRotation = GetActorRotation();
+        actorRotation.Yaw += cameraInput.X;
+        SetActorRotation(actorRotation);
+    }
+
+    // set camera arm pitch by cameraInput
+    {
+        FRotator armRotation = springArmComp->GetComponentRotation();
+        armRotation.Pitch = FMath::Clamp(armRotation.Pitch + cameraInput.Y, -80.0f, -15.0f);
+        springArmComp->SetWorldRotation(armRotation);
+    }
+
+    // actor movement by input
+    {
+        if (!movementInput.IsZero()) {
+            FVector2D inputNormal = movementInput.GetSafeNormal();
+            FVector actorLocation = GetActorLocation();
+            actorLocation += GetActorForwardVector() * inputNormal.X * DeltaTime * 300;
+            actorLocation += GetActorRightVector() * inputNormal.Y * DeltaTime * 300;
+            SetActorLocation(actorLocation);
+        }
+    }
 }
 
 // Called to bind functionality to input
@@ -49,7 +93,7 @@ void APawnWithCamera::SetupPlayerInputComponent(UInputComponent* PlayerInputComp
 
     // hook zoomIn
     InputComponent->BindAction("ZoomIn", IE_Pressed, this, &APawnWithCamera::zoomIn);
-    InputComponent->BindAction("ZoomIn", IE_Pressed, this, &APawnWithCamera::zoomOut);
+    InputComponent->BindAction("ZoomIn", IE_Released, this, &APawnWithCamera::zoomOut);
 
     // hook input movement
     InputComponent->BindAxis("MoveForward", this, &APawnWithCamera::moveForward);
