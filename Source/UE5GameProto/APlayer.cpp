@@ -10,41 +10,48 @@
 // Sets default values
 AAPlayer::AAPlayer()
 {
- 	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
-	PrimaryActorTick.bCanEverTick = true;
+    // Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
+    PrimaryActorTick.bCanEverTick = true;
 
     // create components
-    RootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("RootSceneComponent"));
     springArmComp = CreateDefaultSubobject<USpringArmComponent>(TEXT("SpringArmComponent"));
     cameraComp = CreateDefaultSubobject<UCameraComponent>(TEXT("CameraComponent"));
 
+    // set relative location and rotation when adding mesh
+    GetMesh()->SetRelativeLocationAndRotation(FVector(0.f, 0.f, -90.f), FQuat(FRotator(0.f, -90.f, 0.f)));
+
     // attach components
-    UCapsuleComponent* capsule = GetCapsuleComponent();
-    capsule->SetupAttachment(RootComponent);
-    springArmComp->SetupAttachment(capsule);
+    springArmComp->SetupAttachment(GetMesh());
     cameraComp->SetupAttachment(springArmComp, USpringArmComponent::SocketName);
-
+    
     // assign SpringArm variables
-    springArmComp->SetRelativeLocationAndRotation(FVector(0.0f, 0.0f, 50.f), FRotator(-60.0f, 0.0f, 0.0f));
-    springArmComp->TargetArmLength = 450.0f;
-    springArmComp->bEnableCameraLag = true; // camera smooth
-    springArmComp->CameraLagSpeed = 3.0f;
+    springArmComp->bUsePawnControlRotation = true;
+    //springArmComp->SetRelativeLocationAndRotation(FVector(0.0f, 0.0f, 50.f), FRotator(-60.0f, 0.0f, 0.0f));
+    //springArmComp->TargetArmLength = 450.0f;
+    //springArmComp->bEnableCameraLag = true; // camera smooth
+    //springArmComp->CameraLagSpeed = 3.0f;
 
-    // take control of the default Player
-    AutoPossessPlayer = EAutoReceiveInput::Player0;
+    // assign character movement component variables
+    auto charaMoveComp = GetCharacterMovement();
+    charaMoveComp->bOrientRotationToMovement = true;
+    charaMoveComp->bUseControllerDesiredRotation = true;
+    charaMoveComp->bIgnoreBaseRotation = true;
+
+    //// take control of the default Player
+    //AutoPossessPlayer = EAutoReceiveInput::Player0;
 }
 
 // Called when the game starts or when spawned
 void AAPlayer::BeginPlay()
 {
-	Super::BeginPlay();
+    Super::BeginPlay();
 
 }
 
 // Called every frame
 void AAPlayer::Tick(float DeltaTime)
 {
-	Super::Tick(DeltaTime);
+    Super::Tick(DeltaTime);
 
     // set camera FOV and arm length by zooming in/out
     {
@@ -88,33 +95,69 @@ void AAPlayer::Tick(float DeltaTime)
 // Called to bind functionality to input
 void AAPlayer::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
-	Super::SetupPlayerInputComponent(PlayerInputComponent);
-
-    // hook zoomIn
-    InputComponent->BindAction("ZoomIn", IE_Pressed, this, &AAPlayer::zoomIn);
-    InputComponent->BindAction("ZoomIn", IE_Released, this, &AAPlayer::zoomOut);
+    Super::SetupPlayerInputComponent(PlayerInputComponent);
 
     // hook input movement
     InputComponent->BindAxis("MoveForward", this, &AAPlayer::moveForward);
     InputComponent->BindAxis("MoveRight", this, &AAPlayer::moveRight);
-    InputComponent->BindAxis("CameraPitch", this, &AAPlayer::pitchCamera);
-    InputComponent->BindAxis("CameraYaw", this, &AAPlayer::yawCamera);
+
+    // hook input camera rotation
+    InputComponent->BindAxis("CameraPitch", this, &APawn::AddControllerPitchInput);
+    InputComponent->BindAxis("CameraYaw", this, &APawn::AddControllerYawInput);
+
+    // hook camera zoom
+    InputComponent->BindAction("ZoomIn", IE_Pressed, this, &AAPlayer::zoomIn);
+    InputComponent->BindAction("ZoomIn", IE_Released, this, &AAPlayer::zoomOut);
+
+    // hook action
+    PlayerInputComponent->BindAction("Jump", IE_Pressed, this, &ACharacter::Jump);
+    PlayerInputComponent->BindAction("Jump", IE_Released, this, &ACharacter::StopJumping);
+    PlayerInputComponent->BindAction("Sprint", IE_Pressed, this, &AAPlayer::beginSprint);
+    PlayerInputComponent->BindAction("Sprint", IE_Released, this, &AAPlayer::endSprint);
+    PlayerInputComponent->BindAction("Crouch", IE_Pressed, this, &AAPlayer::beginCrouch);
+    PlayerInputComponent->BindAction("Crouch", IE_Released, this, &AAPlayer::endCrouch);
 }
 
 void AAPlayer::moveForward(float axisValue) {
-    movementInput.X = FMath::Clamp<float>(axisValue, -1.0f, 1.0f);
+    if (Controller != nullptr && axisValue != 0.f) {
+        // Decide direction
+        const auto rotation = Controller->GetControlRotation();
+        const FRotator yawRotation(0, rotation.Yaw, 0);
+        // Get the transformed x-axis orientation from the rotation matrix
+        // Consider that it is right-handed coordinate systems
+        const auto direction = FRotationMatrix(yawRotation).GetUnitAxis(EAxis::X);
+
+        // Add movement scaled by input axisValue
+        AddMovementInput(direction, axisValue);
+    }
 }
 
 void AAPlayer::moveRight(float axisValue) {
-    movementInput.Y = FMath::Clamp<float>(axisValue, -1.0f, 1.0f);
+    if (Controller != nullptr && axisValue != 0.f) {
+        // Decide right direction
+        const auto rotation = Controller->GetControlRotation();
+        const FRotator yawRotation(0, rotation.Yaw, 0);
+        const auto direction = FRotationMatrix(yawRotation).GetUnitAxis(EAxis::Y);
+
+        // Add movement scaled by input axisValue
+        AddMovementInput(direction, axisValue);
+    }
 }
 
-void AAPlayer::pitchCamera(float axisValue) {
-    cameraInput.Y = axisValue;
+void AAPlayer::beginSprint() {
+    GetCharacterMovement()->MaxWalkSpeed = 1000.0f;
 }
 
-void AAPlayer::yawCamera(float axisValue) {
-    cameraInput.X = axisValue;
+void AAPlayer::endSprint() {
+    GetCharacterMovement()->MaxWalkSpeed = 600.f;
+}
+
+void AAPlayer::beginCrouch() {
+    Crouch();
+}
+
+void AAPlayer::endCrouch() {
+    UnCrouch();
 }
 
 void AAPlayer::zoomIn() {

@@ -6,12 +6,9 @@
 #include "GameFramework/GameModeBase.h"
 #include "UE5GameProtoGameModeBase.generated.h"
 
-/**
- * 
- */
 UCLASS()
 class UE5GAMEPROTO_API AUE5GameProtoGameModeBase : public AGameModeBase
 {
 	GENERATED_BODY()
-	
+	AUE5GameProtoGameModeBase();
 };

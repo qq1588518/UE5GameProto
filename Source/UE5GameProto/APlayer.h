@@ -9,15 +9,15 @@
 UCLASS()
 class UE5GAMEPROTO_API AAPlayer : public ACharacter
 {
-	GENERATED_BODY()
+    GENERATED_BODY()
 
 public:
-	// Sets default values for this character's properties
-	AAPlayer();
+    // Sets default values for this character's properties
+    AAPlayer();
 
 protected:
-	// Called when the game starts or when spawned
-	virtual void BeginPlay() override;
+    // Called when the game starts or when spawned
+    virtual void BeginPlay() override;
 
     UPROPERTY(EditAnyWhere)
     class USpringArmComponent* springArmComp; // camera boom
@@ -34,16 +34,18 @@ protected:
     // input functions
     void moveForward(float axisValue);
     void moveRight(float axisValue);
-    void pitchCamera(float axisValue);
-    void yawCamera(float axisValue);
+    void beginSprint();
+    void endSprint();
+    void beginCrouch();
+    void endCrouch();
     void zoomIn();
     void zoomOut();
 
 public:	
-	// Called every frame
-	virtual void Tick(float DeltaTime) override;
+    // Called every frame
+    virtual void Tick(float DeltaTime) override;
 
-	// Called to bind functionality to input
-	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
+    // Called to bind functionality to input
+    virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
 };
