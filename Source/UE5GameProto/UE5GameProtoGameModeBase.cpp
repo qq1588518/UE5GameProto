@@ -4,7 +4,7 @@
 #include "UE5GameProtoGameModeBase.h"
 
 AUE5GameProtoGameModeBase::AUE5GameProtoGameModeBase() : Super() {
-    FString path = "/Game/BP/BpAPlayer.BpAPlayer_c";
+    FString path = "/Game/BluePrints/BP_APlayer.BP_APlayer_c";
     ConstructorHelpers::FObjectFinder<UClass> characterBP(*path);
     TSubclassOf<AActor> bpAPlayer = characterBP.Object;
 
