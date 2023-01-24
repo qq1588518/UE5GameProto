@@ -26,16 +26,16 @@ AAPlayer::AAPlayer()
     
     // assign SpringArm variables
     springArmComp->bUsePawnControlRotation = true;
-    //springArmComp->SetRelativeLocationAndRotation(FVector(0.0f, 0.0f, 50.f), FRotator(-60.0f, 0.0f, 0.0f));
-    //springArmComp->TargetArmLength = 450.0f;
-    //springArmComp->bEnableCameraLag = true; // camera smooth
-    //springArmComp->CameraLagSpeed = 3.0f;
+    springArmComp->TargetArmLength = 450.0f;
+    springArmComp->bEnableCameraLag = true; // camera smooth
+    springArmComp->CameraLagSpeed = 3.0f;
 
     // assign character movement component variables
     auto charaMoveComp = GetCharacterMovement();
     charaMoveComp->bOrientRotationToMovement = true;
     charaMoveComp->bUseControllerDesiredRotation = true;
     charaMoveComp->bIgnoreBaseRotation = true;
+    charaMoveComp->NavAgentProps.bCanCrouch = true;
 
     //// take control of the default Player
     //AutoPossessPlayer = EAutoReceiveInput::Player0;
@@ -46,6 +46,8 @@ void AAPlayer::BeginPlay()
 {
     Super::BeginPlay();
 
+    // initialize camera position and rotation
+    springArmComp->SetRelativeLocationAndRotation(FVector(0.0f, 0.0f, 100.f), FRotator(-60.0f, 0.0f, 0.0f));
 }
 
 // Called every frame
